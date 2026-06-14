@@ -1,0 +1,251 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aula 15 — Monitoramento de Containers</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',system-ui,sans-serif;background:#0f1117;color:#e2e8f0;min-height:100vh;padding:1.5rem}
+    h1{font-size:1.7rem;color:#f97316;margin-bottom:.3rem}
+    h2{font-size:1rem;color:#94a3b8;font-weight:500;margin-bottom:1.2rem}
+    .container{max-width:980px;margin:0 auto}
+
+    /* ── Links de serviços ── */
+    .services{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.75rem;margin-bottom:1.5rem}
+    .card{background:#1e2433;border:1px solid #2d3748;border-radius:10px;padding:1rem;transition:border-color .2s}
+    .card:hover{border-color:#f97316}
+    .card h3{font-size:.9rem;font-weight:600;margin-bottom:.2rem}
+    .card p{font-size:.78rem;color:#94a3b8}
+    .card a{display:inline-block;margin-top:.5rem;color:#f97316;font-size:.8rem;text-decoration:none;font-weight:600}
+    .card a:hover{text-decoration:underline}
+    .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#22c55e;margin-right:4px;animation:pulse 2s infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+    /* ── Painel de testes ── */
+    .panel{background:#1e2433;border:1px solid #2d3748;border-radius:12px;padding:1.25rem;margin-bottom:1.5rem}
+    .panel-title{font-size:1.05rem;font-weight:700;color:#f1f5f9;margin-bottom:1rem;display:flex;align-items:center;gap:.5rem}
+    .section-label{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#64748b;margin:.9rem 0 .4rem}
+    .btn-row{display:flex;flex-wrap:wrap;gap:.5rem}
+
+    button{
+      cursor:pointer;border:none;border-radius:8px;
+      font-size:.82rem;font-weight:600;padding:.45rem .9rem;
+      transition:opacity .15s,transform .1s;
+    }
+    button:hover:not(:disabled){opacity:.85;transform:translateY(-1px)}
+    button:active:not(:disabled){transform:scale(.97)}
+    button:disabled{opacity:.4;cursor:not-allowed}
+
+    .btn-info   {background:#0ea5e9;color:#fff}
+    .btn-warn   {background:#f59e0b;color:#000}
+    .btn-error  {background:#ef4444;color:#fff}
+    .btn-cpu    {background:#a855f7;color:#fff}
+    .btn-memory {background:#06b6d4;color:#000}
+    .btn-nginx  {background:#6366f1;color:#fff}
+    .btn-mix    {background:linear-gradient(135deg,#f97316,#ef4444,#a855f7);color:#fff;font-size:.9rem;padding:.55rem 1.4rem}
+
+    /* ── Console de saída ── */
+    .console-wrap{margin-top:1rem}
+    .console-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem}
+    .console-header span{font-size:.8rem;color:#64748b}
+    .console-header button{background:#1e2433;color:#94a3b8;border:1px solid #2d3748;border-radius:6px;padding:.2rem .6rem;font-size:.75rem}
+    #console{
+      background:#0d1117;border:1px solid #2d3748;border-radius:8px;
+      padding:.75rem;height:220px;overflow-y:auto;
+      font-family:'Consolas','Fira Code',monospace;font-size:.78rem;line-height:1.55;
+    }
+    .log-info   {color:#4ade80}
+    .log-warn   {color:#fbbf24}
+    .log-error  {color:#f87171}
+    .log-system {color:#94a3b8}
+    .log-ok     {color:#38bdf8}
+    .spinner{display:inline-block;width:10px;height:10px;border:2px solid #f9731644;border-top-color:#f97316;border-radius:50%;animation:spin .6s linear infinite;margin-right:5px;vertical-align:middle}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* ── Queries de exemplo ── */
+    .queries{background:#1e2433;border:1px solid #2d3748;border-radius:12px;padding:1.25rem}
+    .queries h3{font-size:.95rem;font-weight:700;margin-bottom:.8rem}
+    code{background:#0d1117;color:#86efac;padding:.15rem .4rem;border-radius:4px;font-size:.78rem}
+    ul{list-style:none;display:flex;flex-direction:column;gap:.4rem}
+    li{font-size:.82rem;color:#94a3b8}
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <header style="margin-bottom:1.5rem">
+    <h1>🐳 Monitoramento de Containers</h1>
+    <h2>Aula 15 — Prometheus · Grafana · Loki · cAdvisor · Node Exporter</h2>
+  </header>
+
+  <!-- Serviços -->
+  <div class="services">
+    <div class="card">
+      <h3><span class="dot"></span>Grafana</h3>
+      <p>Dashboards de métricas e logs em tempo real</p>
+      <a href="http://localhost:3000" target="_blank">Abrir →</a>
+      <p style="margin-top:.3rem;font-size:.72rem;color:#475569">admin / admin</p>
+    </div>
+    <div class="card">
+      <h3><span class="dot"></span>Prometheus</h3>
+      <p>Query PromQL e status dos scrape targets</p>
+      <a href="http://localhost:9090/targets" target="_blank">Ver targets →</a>
+    </div>
+    <div class="card">
+      <h3><span class="dot"></span>cAdvisor</h3>
+      <p>CPU, memória e rede de cada container</p>
+      <a href="http://localhost:8081" target="_blank">Abrir →</a>
+    </div>
+    <div class="card">
+      <h3><span class="dot"></span>Simulator API</h3>
+      <p>Backend dos testes — logs, CPU, memória</p>
+      <a href="http://localhost:5000/health" target="_blank">Health check →</a>
+    </div>
+  </div>
+
+  <!-- ====================================================================
+       PAINEL DE TESTES
+  ===================================================================== -->
+  <div class="panel">
+    <div class="panel-title">🧪 Painel de Testes — gera eventos reais no stack</div>
+
+    <!-- LOGS -->
+    <div class="section-label">📋 Logs (visíveis no Grafana → Explore → Loki)</div>
+    <div class="btn-row">
+      <button class="btn-info"  onclick="callSim('/api/logs?level=INFO&count=20',  'INFO',   'Gerando 20 logs INFO no simulator...')">📋 INFO × 20</button>
+      <button class="btn-warn"  onclick="callSim('/api/logs?level=WARN&count=10',  'WARN',   'Gerando 10 logs WARN no simulator...')">⚠️ WARN × 10</button>
+      <button class="btn-error" onclick="callSim('/api/logs?level=ERROR&count=5',  'ERROR',  'Gerando 5 logs ERROR no simulator...')">💥 ERROR × 5</button>
+      <button class="btn-error" onclick="callSim('/api/logs?level=ERROR&count=20', 'ERROR',  'Gerando 20 logs ERROR — chuva de erros!')">🚨 ERROR × 20</button>
+    </div>
+
+    <!-- CPU -->
+    <div class="section-label">🔥 CPU (visível no Prometheus → container_cpu_usage_seconds_total)</div>
+    <div class="btn-row">
+      <button class="btn-cpu" onclick="callSim('/api/cpu?duration=20&threads=1', 'CPU',    'CPU stress: 1 thread × 20s')">🔥 Spike leve (1 thread, 20s)</button>
+      <button class="btn-cpu" onclick="callSim('/api/cpu?duration=30&threads=2', 'CPU',    'CPU stress: 2 threads × 30s')">🔥🔥 Spike médio (2 threads, 30s)</button>
+      <button class="btn-cpu" onclick="callSim('/api/cpu?duration=45&threads=4', 'CPU',    'CPU stress: 4 threads × 45s — calor máximo!')">🌋 Spike máximo (4 threads, 45s)</button>
+    </div>
+
+    <!-- MEMÓRIA -->
+    <div class="section-label">💾 Memória (visível em container_memory_usage_bytes)</div>
+    <div class="btn-row">
+      <button class="btn-memory" onclick="callSim('/api/memory?mb=100&duration=15', 'MEMORY', 'Alocando 100MB por 15s...')">💾 100 MB (15s)</button>
+      <button class="btn-memory" onclick="callSim('/api/memory?mb=256&duration=20', 'MEMORY', 'Alocando 256MB por 20s...')">💾 256 MB (20s)</button>
+      <button class="btn-memory" onclick="callSim('/api/memory?mb=400&duration=15', 'MEMORY', 'Alocando 400MB por 15s — memória alta!')">💾 400 MB (15s)</button>
+    </div>
+
+    <!-- NGINX / TRÁFEGO HTTP -->
+    <div class="section-label">🌐 Tráfego HTTP nginx (logs aparecem em {tag="nginx-app"} no Loki)</div>
+    <div class="btn-row">
+      <button class="btn-nginx" onclick="floodNginx(50,  '/')">🌊 Flood 50 reqs (200 OK)</button>
+      <button class="btn-nginx" onclick="floodNginx(100, '/')">🌊🌊 Flood 100 reqs (200 OK)</button>
+      <button class="btn-nginx" onclick="floodNginx(30, '/nao-existe-' + Date.now())">🚫 30 × 404 Not Found</button>
+      <button class="btn-nginx" onclick="flood405(20)">🔴 20 × 405 (DELETE)</button>
+    </div>
+
+    <!-- MIX COMPLETO -->
+    <div class="section-label">🎯 Simulação completa</div>
+    <div class="btn-row">
+      <button class="btn-mix" onclick="callSim('/api/mix', 'MIX', 'MIX: INFO×20 + WARN×10 + ERROR×5 + CPU×2(30s) + RAM 200MB(25s)')">
+        🎯 Mix Completo — tudo junto!
+      </button>
+    </div>
+
+    <!-- Console -->
+    <div class="console-wrap">
+      <div class="console-header">
+        <span id="console-status">Console de saída</span>
+        <button onclick="clearConsole()">Limpar</button>
+      </div>
+      <div id="console">
+        <span class="log-system">> Stack iniciado. Use os botões acima para gerar eventos.</span><br>
+        <span class="log-system">> Logs do simulator aparecem no Loki em {tag="simulator"}</span><br>
+        <span class="log-system">> Logs do nginx aparecem em {tag="nginx-app"}</span><br>
+      </div>
+    </div>
+  </div>
+
+  <!-- Queries de exemplo -->
+  <div class="queries">
+    <h3>🔍 Queries de referência rápida</h3>
+    <ul>
+      <li>📈 PromQL — CPU: <code>sum(rate(container_cpu_usage_seconds_total{name!=""}[1m])) by (name) * 100</code></li>
+      <li>💾 PromQL — RAM: <code>container_memory_usage_bytes{name!=""}</code></li>
+      <li>📝 LogQL — todos os logs: <code>{job="docker"}</code></li>
+      <li>💥 LogQL — só erros: <code>{job="docker"} |= "ERROR"</code></li>
+      <li>🔎 LogQL — logs do simulator: <code>{tag="simulator"}</code></li>
+      <li>🌐 LogQL — logs do nginx: <code>{tag="nginx-app"} |= "404"</code></li>
+    </ul>
+  </div>
+
+</div>
+
+<script>
+  const SIM = 'http://localhost:5000';
+  const con = document.getElementById('console');
+
+  function ts() {
+    return new Date().toLocaleTimeString('pt-BR');
+  }
+
+  function log(msg, cls = 'log-system') {
+    const line = document.createElement('span');
+    line.className = cls;
+    line.textContent = `> [${ts()}] ${msg}`;
+    con.appendChild(line);
+    con.appendChild(document.createElement('br'));
+    con.scrollTop = con.scrollHeight;
+  }
+
+  function clearConsole() {
+    con.innerHTML = '';
+    log('Console limpo.', 'log-system');
+  }
+
+  async function callSim(path, type, description) {
+    log(description, 'log-system');
+
+    // Spinner no status
+    const status = document.getElementById('console-status');
+    status.innerHTML = '<span class="spinner"></span>Aguardando simulator...';
+
+    try {
+      const res  = await fetch(SIM + path);
+      const data = await res.json();
+      const cls  = type === 'ERROR' ? 'log-error'
+                 : type === 'WARN'  ? 'log-warn'
+                 : type === 'CPU'   ? 'log-warn'
+                 : type === 'MIX'   ? 'log-error'
+                 : 'log-ok';
+      log(`✅ ${type}: ${JSON.stringify(data)}`, cls);
+    } catch (e) {
+      log(`❌ Erro ao chamar simulator (porta 5000): ${e.message}`, 'log-error');
+      log('   ⚠ Verifique se o container "simulator" está rodando.', 'log-error');
+    } finally {
+      status.textContent = 'Console de saída';
+    }
+  }
+
+  async function floodNginx(count, path) {
+    log(`🌊 Enviando ${count} requisições GET ${path} para nginx...`, 'log-system');
+    const start = Date.now();
+    const reqs  = Array.from({length: count}, () =>
+      fetch(`http://localhost:8080${path}`, {cache: 'no-store'}).catch(() => null)
+    );
+    await Promise.all(reqs);
+    const elapsed = Date.now() - start;
+    log(`✅ Flood concluído: ${count} requisições em ${elapsed}ms`, 'log-ok');
+  }
+
+  async function flood405(count) {
+    log(`🔴 Enviando ${count} requisições DELETE (405) para nginx...`, 'log-system');
+    const reqs = Array.from({length: count}, () =>
+      fetch('http://localhost:8080/', {method: 'DELETE', cache: 'no-store'}).catch(() => null)
+    );
+    await Promise.all(reqs);
+    log(`✅ ${count} requisições DELETE enviadas — verifique os logs nginx no Loki`, 'log-ok');
+  }
+</script>
+</body>
+</html>

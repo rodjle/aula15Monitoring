@@ -1,0 +1,54 @@
+# =============================================================================
+# CONFIGURAÇÃO DO PROMETHEUS
+# Define intervalo de coleta e quais serviços serão monitorados (scrape targets)
+# =============================================================================
+
+global:
+  # Intervalo padrão entre cada coleta de métricas
+  scrape_interval: 15s
+
+  # Timeout para cada requisição de scrape
+  scrape_timeout: 10s
+
+  # Intervalo para avaliar regras de alerta (não usamos alertas aqui, mas é boa prática)
+  evaluation_interval: 15s
+
+# =============================================================================
+# SCRAPE CONFIGS — define quais endpoints /metrics serão coletados
+# =============================================================================
+scrape_configs:
+
+  # ---------------------------------------------------------------------------
+  # O próprio Prometheus se monitora
+  # Métricas disponíveis em: http://prometheus:9090/metrics
+  # ---------------------------------------------------------------------------
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+        labels:
+          service: "prometheus"
+
+  # ---------------------------------------------------------------------------
+  # cAdvisor — métricas de CPU, RAM, rede e disco dos containers
+  # O cAdvisor usa a porta 8080 INTERNAMENTE (porta externa é 8081)
+  # Na rede Docker interna, usamos a porta interna do container
+  # Métricas disponíveis em: http://cadvisor:8080/metrics
+  # ---------------------------------------------------------------------------
+  - job_name: "cadvisor"
+    scrape_interval: 15s
+    static_configs:
+      - targets: ["cadvisor:8080"]
+        labels:
+          service: "cadvisor"
+
+  # ---------------------------------------------------------------------------
+  # Node Exporter — métricas do sistema operacional host
+  # CPU total, uso de memória, espaço em disco, tráfego de rede, etc.
+  # Métricas disponíveis em: http://node-exporter:9100/metrics
+  # ---------------------------------------------------------------------------
+  - job_name: "node-exporter"
+    scrape_interval: 15s
+    static_configs:
+      - targets: ["node-exporter:9100"]
+        labels:
+          service: "node-exporter"

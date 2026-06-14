@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Guia de Observabilidade — Aula 15</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #21262d;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --orange: #f97316;
+      --orange-dim: #7c3412;
+      --green: #3fb950;
+      --blue: #58a6ff;
+      --purple: #bc8cff;
+      --yellow: #e3b341;
+      --red: #f85149;
+      --cyan: #39d353;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: -apple-system, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: sticky;
+      top: 0;
+      background: rgba(13,17,23,.95);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+      z-index: 100;
+      padding: 0 2rem;
+    }
+    nav ul {
+      display: flex;
+      gap: 0;
+      list-style: none;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    nav ul::-webkit-scrollbar { display: none; }
+    nav a {
+      display: block;
+      padding: 1rem 1.1rem;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: .82rem;
+      font-weight: 500;
+      white-space: nowrap;
+      border-bottom: 2px solid transparent;
+      transition: color .15s, border-color .15s;
+    }
+    nav a:hover, nav a.active { color: var(--orange); border-bottom-color: var(--orange); }
+
+    /* ── HERO ── */
+    .hero {
+      background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #0d1117 100%);
+      border-bottom: 1px solid var(--border);
+      text-align: center;
+      padding: 4rem 2rem 3rem;
+    }
+    .hero h1 { font-size: clamp(1.8rem, 4vw, 2.8rem); font-weight: 700; margin-bottom: .5rem; }
+    .hero h1 span { color: var(--orange); }
+    .hero p { color: var(--muted); font-size: 1.05rem; max-width: 600px; margin: 0 auto 2rem; }
+    .pill-row { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center; }
+    .pill {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: .3rem .9rem;
+      font-size: .78rem;
+      font-weight: 600;
+    }
+
+    /* ── LAYOUT ── */
+    .container { max-width: 960px; margin: 0 auto; padding: 3rem 1.5rem; }
+    .section-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-bottom: 1.5rem;
+      padding-bottom: .75rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+    }
+
+    /* ── CARDS DE FERRAMENTAS ── */
+    .tools-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+      gap: 1rem;
+      margin-bottom: 3rem;
+    }
+    .tool-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.4rem;
+      transition: border-color .2s, transform .2s;
+      position: relative;
+      overflow: hidden;
+    }
+    .tool-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+    }
+    .tool-card:hover { border-color: var(--orange); transform: translateY(-2px); }
+    .tool-card.prometheus::before { background: var(--orange); }
+    .tool-card.grafana::before    { background: var(--yellow); }
+    .tool-card.loki::before       { background: var(--purple); }
+    .tool-card.promtail::before   { background: var(--cyan); }
+    .tool-card.cadvisor::before   { background: var(--blue); }
+    .tool-card.node::before       { background: var(--green); }
+
+    .tool-header { display: flex; align-items: center; gap: .75rem; margin-bottom: .75rem; }
+    .tool-icon { font-size: 1.8rem; }
+    .tool-name { font-size: 1rem; font-weight: 700; }
+    .tool-port { font-size: .75rem; color: var(--muted); }
+    .tool-desc { font-size: .85rem; color: var(--muted); margin-bottom: .75rem; }
+    .tool-tag {
+      display: inline-block;
+      font-size: .7rem;
+      font-weight: 600;
+      padding: .2rem .6rem;
+      border-radius: 999px;
+      margin-right: .3rem;
+      margin-bottom: .3rem;
+    }
+    .tag-metrics  { background: #7c3412; color: #fed7aa; }
+    .tag-logs     { background: #3b0764; color: #e9d5ff; }
+    .tag-visual   { background: #1e3a5f; color: #bfdbfe; }
+    .tag-agent    { background: #14532d; color: #bbf7d0; }
+    .tag-infra    { background: #1c1917; color: #d6d3d1; border: 1px solid #57534e; }
+
+    .tool-link {
+      display: inline-flex;
+      align-items: center;
+      gap: .3rem;
+      margin-top: .5rem;
+      color: var(--orange);
+      font-size: .82rem;
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .tool-link:hover { text-decoration: underline; }
+
+    /* ── ARQUITETURA ── */
+    .arch-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 3rem;
+    }
+    .arch-flow {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: .5rem;
+      font-size: .85rem;
+    }
+    .arch-node {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: .5rem 1rem;
+      text-align: center;
+      min-width: 110px;
+    }
+    .arch-node small { display: block; font-size: .7rem; color: var(--muted); }
+    .arch-arrow { color: var(--orange); font-size: 1.2rem; }
+
+    /* ── STEPS ── */
+    .steps { display: flex; flex-direction: column; gap: 1.5rem; margin-bottom: 3rem; }
+    .step {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      display: grid;
+      grid-template-columns: 48px 1fr;
+      gap: 1rem;
+      align-items: start;
+    }
+    .step-num {
+      width: 48px;
+      height: 48px;
+      background: var(--orange);
+      color: #000;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+    .step h3 { font-size: 1rem; margin-bottom: .4rem; }
+    .step p  { font-size: .88rem; color: var(--muted); margin-bottom: .75rem; }
+
+    /* ── CODE ── */
+    pre, code {
+      font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    }
+    pre {
+      background: #010409;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.2rem;
+      overflow-x: auto;
+      font-size: .82rem;
+      line-height: 1.6;
+      position: relative;
+    }
+    pre .comment { color: #6e7681; }
+    pre .cmd     { color: var(--green); }
+    pre .url     { color: var(--blue); }
+    pre .keyword { color: var(--purple); }
+    pre .string  { color: var(--yellow); }
+    code {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: .1em .4em;
+      font-size: .85em;
+      color: var(--orange);
+    }
+
+    /* ── QUERIES ── */
+    .query-section { margin-bottom: 3rem; }
+    .query-tabs { display: flex; gap: .5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .qtab {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: .4rem 1rem;
+      font-size: .82rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--muted);
+      transition: all .15s;
+    }
+    .qtab:hover, .qtab.active { background: var(--orange); color: #000; border-color: var(--orange); }
+    .query-block { display: none; }
+    .query-block.active { display: block; }
+    .query-item { margin-bottom: 1rem; }
+    .query-item p { font-size: .82rem; color: var(--muted); margin-bottom: .4rem; }
+
+    /* ── CHECKLIST ── */
+    .checklist {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 3rem;
+    }
+    .check-item {
+      display: flex;
+      align-items: flex-start;
+      gap: .75rem;
+      padding: .6rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: .88rem;
+    }
+    .check-item:last-child { border-bottom: none; }
+    .check-item input[type=checkbox] { margin-top: 3px; accent-color: var(--orange); transform: scale(1.2); flex-shrink: 0; }
+
+    /* ── ALERT BOX ── */
+    .alert {
+      border-radius: 8px;
+      padding: .9rem 1.1rem;
+      font-size: .85rem;
+      margin: .75rem 0;
+      display: flex;
+      gap: .6rem;
+      align-items: flex-start;
+    }
+    .alert-info    { background: #0c2a4a; border-left: 3px solid var(--blue); }
+    .alert-tip     { background: #0f2a1a; border-left: 3px solid var(--green); }
+    .alert-warning { background: #2a1f0c; border-left: 3px solid var(--yellow); }
+
+    /* ── GLOSSARIO ── */
+    .glossary { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin-bottom: 3rem; }
+    .gloss-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+    }
+    .gloss-item dt { font-weight: 700; color: var(--orange); margin-bottom: .25rem; font-size: .9rem; }
+    .gloss-item dd { font-size: .82rem; color: var(--muted); }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border);
+      text-align: center;
+      padding: 2rem;
+      color: var(--muted);
+      font-size: .82rem;
+    }
+
+    @media (max-width: 600px) {
+      .step { grid-template-columns: 1fr; }
+      .step-num { width: 36px; height: 36px; font-size: .9rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <ul>
+    <li><a href="#ferramentas">🔧 Ferramentas</a></li>
+    <li><a href="#arquitetura">🏗️ Arquitetura</a></li>
+    <li><a href="#passo-a-passo">📋 Passo a Passo</a></li>
+    <li><a href="#queries">🔍 Queries</a></li>
+    <li><a href="#dashboard">📊 Dashboard</a></li>
+    <li><a href="#checklist">✅ Checklist</a></li>
+    <li><a href="#glossario">📖 Glossário</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <h1>Monitoramento &amp; <span>Observabilidade</span></h1>
+  <p>Guia prático para entender como funciona uma stack completa de observabilidade usando containers Docker.</p>
+  <div class="pill-row">
+    <span class="pill" style="color:#f97316">Prometheus</span>
+    <span class="pill" style="color:#e3b341">Grafana</span>
+    <span class="pill" style="color:#bc8cff">Loki</span>
+    <span class="pill" style="color:#39d353">Promtail</span>
+    <span class="pill" style="color:#58a6ff">cAdvisor</span>
+    <span class="pill" style="color:#3fb950">Node Exporter</span>
+    <span class="pill" style="color:#f85149">Nginx</span>
+  </div>
+</section>
+
+<!-- FERRAMENTAS -->
+<div class="container" id="ferramentas">
+  <h2 class="section-title">🔧 As Ferramentas da Stack</h2>
+  <div class="tools-grid">
+
+    <div class="tool-card prometheus">
+      <div class="tool-header">
+        <span class="tool-icon">🔥</span>
+        <div>
+          <div class="tool-name">Prometheus</div>
+          <div class="tool-port">localhost:9090</div>
+        </div>
+      </div>
+      <p class="tool-desc">
+        Banco de dados de séries temporais (time-series). A cada 15 segundos, ele "raspa" 
+        (<em>scrape</em>) os endpoints <code>/metrics</code> de cada serviço e armazena 
+        os dados localmente. Usa a linguagem <strong>PromQL</strong> para consultas.
+      </p>
+      <span class="tool-tag tag-metrics">métricas</span>
+      <span class="tool-tag tag-infra">pull-based</span>
+      <br/>
+      <a class="tool-link" href="http://localhost:9090" target="_blank">↗ Abrir Prometheus</a>
+    </div>
+
+    <div class="tool-card grafana">
+      <div class="tool-header">
+        <span class="tool-icon">📊</span>
+        <div>
+          <div class="tool-name">Grafana</div>
+          <div class="tool-port">localhost:3000 · admin / admin</div>
+        </div>
+      </div>
+      <p class="tool-desc">
+        Plataforma de visualização e dashboards. Conecta em múltiplas fontes de dados 
+        (Prometheus, Loki, etc.) e exibe gráficos, alertas e painéis interativos em 
+        tempo real. É o "painel de controle" da stack.
+      </p>
+      <span class="tool-tag tag-visual">dashboards</span>
+      <span class="tool-tag tag-visual">alertas</span>
+      <br/>
+      <a class="tool-link" href="http://localhost:3000" target="_blank">↗ Abrir Grafana</a>
+    </div>
+
+    <div class="tool-card loki">
+      <div class="tool-header">
+        <span class="tool-icon">📋</span>
+        <div>
+          <div class="tool-name">Loki</div>
+          <div class="tool-port">localhost:3100</div>
+        </div>
+      </div>
+      <p class="tool-desc">
+        Sistema de agregação de logs — funciona como um "Prometheus para logs". 
+        Não indexa o conteúdo dos logs (o que o torna eficiente), apenas os metadados 
+        (<em>labels</em>). Usa a linguagem <strong>LogQL</strong> para consultas.
+      </p>
+      <span class="tool-tag tag-logs">logs</span>
+      <span class="tool-tag tag-infra">labels</span>
+      <br/>
+      <a class="tool-link" href="http://localhost:3000/explore" target="_blank">↗ Ver Logs no Grafana</a>
+    </div>
+
+    <div class="tool-card promtail">
+      <div class="tool-header">
+        <span class="tool-icon">📡</span>
+        <div>
+          <div class="tool-name">Promtail</div>
+          <div class="tool-port">agente interno</div>
+        </div>
+      </div>
+      <p class="tool-desc">
+        Agente que roda nos hosts e coleta os arquivos de log dos containers Docker 
+        (<code>/var/lib/docker/containers</code>). Adiciona <em>labels</em> (nome do 
+        container, stream, etc.) e envia para o Loki via HTTP push.
+      </p>
+      <span class="tool-tag tag-agent">agente</span>
+      <span class="tool-tag tag-logs">push-based</span>
+    </div>
+
+    <div class="tool-card cadvisor">
+      <div class="tool-header">
+        <span class="tool-icon">📦</span>
+        <div>
+          <div class="tool-name">cAdvisor</div>
+          <div class="tool-port">localhost:8081</div>
+        </div>
+      </div>
+      <p class="tool-desc">
+        Container Advisor — criado pelo Google. Monitora em tempo real o consumo de 
+        CPU, memória, rede e disco de <strong>cada container</strong> em execução. 
+        Expõe endpoint <code>/metrics</code> que o Prometheus coleta.
+      </p>
+      <span class="tool-tag tag-metrics">containers</span>
+      <span class="tool-tag tag-infra">Google OSS</span>
+      <br/>
+      <a class="tool-link" href="http://localhost:8081" target="_blank">↗ Abrir cAdvisor</a>
+    </div>
+
+    <div class="tool-card node">
+      <div class="tool-header">
+        <span class="tool-icon">🖥️</span>
+        <div>
+          <div class="tool-name">Node Exporter</div>
+          <div class="tool-port">:9100 (interno)</div>
+        </div>
+      </div>
+      <p class="tool-desc">
+        Exporta métricas do <strong>sistema operacional host</strong>: CPU total, memória 
+        disponível, espaço em disco, tráfego de rede, carga do sistema (load average), etc. 
+        Indispensável para monitorar a saúde da máquina.
+      </p>
+      <span class="tool-tag tag-metrics">host OS</span>
+      <span class="tool-tag tag-infra">Linux/Mac</span>
+    </div>
+
+  </div>
+
+  <!-- COMPARATIVO RÁPIDO -->
+  <div class="alert alert-info">
+    💡 <span><strong>cAdvisor vs Node Exporter:</strong> cAdvisor monitora cada <em>container individualmente</em>. Node Exporter monitora o <em>servidor como um todo</em>. Você precisa dos dois para ter visibilidade completa.</span>
+  </div>
+  <div class="alert alert-tip" style="margin-top:.5rem">
+    💡 <span><strong>Loki vs Elasticsearch:</strong> O Loki foi projetado para ser muito mais simples e barato. Não indexa o texto dos logs — apenas os metadados (labels). Para buscas full-text complexas, o Elasticsearch é mais poderoso, mas muito mais pesado.</span>
+  </div>
+</div>
+
+<!-- ARQUITETURA -->
+<div class="container" id="arquitetura">
+  <h2 class="section-title">🏗️ Como as Ferramentas se Conectam</h2>
+  <div class="arch-box">
+    <div class="arch-flow">
+      <div class="arch-node" style="border-color:#3fb950">
+        <strong>Node Exporter</strong>
+        <small>métricas do host</small>
+      </div>
+      <span class="arch-arrow">→</span>
+      <div class="arch-node" style="border-color:#f97316">
+        <strong>Prometheus</strong>
+        <small>scrape (pull)</small>
+      </div>
+      <span class="arch-arrow">→</span>
+      <div class="arch-node" style="border-color:#e3b341">
+        <strong>Grafana</strong>
+        <small>dashboards</small>
+      </div>
+    </div>
+    <div class="arch-flow" style="margin-top:1rem">
+      <div class="arch-node" style="border-color:#58a6ff">
+        <strong>cAdvisor</strong>
+        <small>métricas containers</small>
+      </div>
+      <span class="arch-arrow">→</span>
+      <div class="arch-node" style="border-color:#f97316">
+        <strong>Prometheus</strong>
+        <small>armazena</small>
+      </div>
+    </div>
+    <div class="arch-flow" style="margin-top:1rem">
+      <div class="arch-node" style="border-color:#f85149">
+        <strong>Nginx / Apps</strong>
+        <small>geram logs</small>
+      </div>
+      <span class="arch-arrow">→</span>
+      <div class="arch-node" style="border-color:#39d353">
+        <strong>Promtail</strong>
+        <small>lê arquivos .log</small>
+      </div>
+      <span class="arch-arrow">→</span>
+      <div class="arch-node" style="border-color:#bc8cff">
+        <strong>Loki</strong>
+        <small>indexa labels</small>
+      </div>
+      <span class="arch-arrow">→</span>
+      <div class="arch-node" style="border-color:#e3b341">
+        <strong>Grafana</strong>
+        <small>Explore / Logs</small>
+      </div>
+    </div>
+    <p style="text-align:center; margin-top:1.5rem; font-size:.82rem; color:var(--muted)">
+      O Prometheus usa modelo <strong>pull</strong> (ele busca as métricas). O Loki usa modelo <strong>push</strong> (o Promtail envia os logs).
+    </p>
+  </div>
+</div>
+
+<!-- PASSO A PASSO -->
+<div class="container" id="passo-a-passo">
+  <h2 class="section-title">📋 Passo a Passo — Explorando a Stack</h2>
+  <div class="steps">
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div>
+        <h3>Confirmar que todos os containers estão rodando</h3>
+        <p>Antes de tudo, verifique se todos os serviços subiram corretamente. Todos devem estar como <code>Up</code>.</p>
+        <pre><span class="cmd">docker compose ps</span>
+<span class="comment"># Esperado: prometheus, grafana, loki, promtail, cadvisor, node-exporter, nginx — todos Up</span></pre>
+        <div class="alert alert-tip">
+          ✅ Se algum estiver como <code>Exit</code>, rode <code>docker compose logs &lt;nome&gt;</code> para ver o erro.
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div>
+        <h3>Acessar o Prometheus e verificar os targets</h3>
+        <p>O Prometheus mostra quais serviços ele está monitorando. Todos devem estar verdes (<strong>UP</strong>).</p>
+        <pre><span class="comment"># Abra no navegador:</span>
+<span class="url">http://localhost:9090/targets</span></pre>
+        <p>Você verá três targets: <code>prometheus</code>, <code>cadvisor</code> e <code>node-exporter</code>. Estado <strong style="color:var(--green)">UP</strong> = coletando com sucesso.</p>
+        <div class="alert alert-info">
+          💡 Cada target expõe um endpoint <code>/metrics</code> com centenas de métricas em texto plano. Tente acessar: <a href="http://localhost:9090/metrics" target="_blank" style="color:var(--blue)">http://localhost:9090/metrics</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div>
+        <h3>Fazer sua primeira query PromQL no Prometheus</h3>
+        <p>Acesse a aba <strong>Graph</strong> do Prometheus e execute uma query para ver dados ao vivo.</p>
+        <pre><span class="comment"># Abra:</span>
+<span class="url">http://localhost:9090/graph</span>
+
+<span class="comment"># Cole esta query e clique em Execute:</span>
+<span class="keyword">container_memory_usage_bytes</span>{name!=""}</pre>
+        <p>Você verá um gráfico com o uso de memória de cada container. Alterne entre <strong>Table</strong> e <strong>Graph</strong> para ver os dois formatos.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">4</div>
+      <div>
+        <h3>Acessar o Grafana e explorar os datasources</h3>
+        <p>O Grafana já vem configurado automaticamente com Prometheus e Loki como fontes de dados.</p>
+        <pre><span class="url">http://localhost:3000</span>
+<span class="comment"># Login: admin / admin  →  clique Skip ao pedir troca de senha</span>
+
+<span class="comment"># Para ver os datasources:</span>
+<span class="comment"># Menu lateral → Connections → Data sources</span></pre>
+        <div class="alert alert-tip">
+          ✅ Você verá <strong>Prometheus</strong> (marcado como padrão) e <strong>Loki</strong> já configurados sem nenhuma intervenção manual. Isso é o <em>provisioning</em>.
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">5</div>
+      <div>
+        <h3>Visualizar logs no Grafana com Loki (Explore)</h3>
+        <p>O Explore é onde você faz queries ao vivo sem precisar criar um dashboard.</p>
+        <pre><span class="comment"># Acesse:</span>
+<span class="url">http://localhost:3000/explore</span>
+
+<span class="comment"># No seletor de datasource (topo), escolha: Loki
+# No campo de query, digite:</span>
+<span class="keyword">{job="docker"}</span>
+
+<span class="comment"># Clique em "Run query" ou Shift+Enter</span></pre>
+        <p>Você verá todos os logs de todos os containers em tempo real. Clique em <strong>Live</strong> para acompanhar as entradas chegando.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">6</div>
+      <div>
+        <h3>Gerar tráfego para ver métricas e logs mudarem</h3>
+        <p>Faça requisições ao nginx para gerar logs e veja eles aparecendo no Loki.</p>
+        <pre><span class="comment"># Terminal (Linux/Mac):</span>
+<span class="cmd">for i in $(seq 1 50); do curl -s http://localhost:8080 > /dev/null; done</span>
+
+<span class="comment"># Gerar erros 404:</span>
+<span class="cmd">for i in $(seq 1 20); do curl -s http://localhost:8080/nao-existe; done</span>
+
+<span class="comment"># Windows PowerShell:</span>
+<span class="cmd">1..50 | ForEach-Object { Invoke-WebRequest http://localhost:8080 -UseBasicParsing | Out-Null }</span></pre>
+        <div class="alert alert-warning">
+          ⚡ Após as requisições, volte ao Grafana Explore com a query <code>{tag="nginx-app"}</code> e veja os logs de acesso chegando.
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">7</div>
+      <div>
+        <h3>Simular carga de CPU</h3>
+        <p>Suba um container temporário que consuma CPU e observe o gráfico do <strong>host</strong> subir no Prometheus via Node Exporter.</p>
+        <pre><span class="comment"># Cria carga em 2 CPUs por 45 segundos:</span>
+<span class="cmd">docker run --rm --name stress-test alpine \
+  sh -c "cat /dev/urandom | gzip -9 > /dev/null &  cat /dev/urandom | gzip -9 > /dev/null; sleep 45"</span>
+
+<span class="comment"># Query que vai mostrar o impacto (Node Exporter — funciona no Docker Desktop):</span>
+<span class="keyword">100 - (avg by(instance)(rate(node_cpu_seconds_total{mode="idle"}[30s])) * 100)</span>
+
+<span class="comment"># ⚠️ A query abaixo NÃO funciona no Docker Desktop (só Linux nativo):</span>
+<span class="comment"># rate(container_cpu_usage_seconds_total{name="stress-test"}[30s]) * 100</span></pre>
+        <div class="alert alert-info">💡 No Docker Desktop, use o <strong>Node Exporter</strong> para ver o impacto de CPU — a métrica <code>node_cpu_seconds_total</code> reflete o consumo real do host WSL2.</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">8</div>
+      <div>
+        <h3>Importar dashboard do Grafana Labs</h3>
+        <p>O Grafana Labs tem centenas de dashboards prontos. Vamos importar o "Node Exporter Full" (ID 1860).</p>
+        <pre><span class="comment"># 1. No Grafana: Dashboards → New → Import
+# 2. No campo "Import via grafana.com" digite:</span>
+<span class="string">1860</span>
+<span class="comment"># 3. Clique Load
+# 4. Em Prometheus, selecione o datasource Prometheus
+# 5. Clique Import</span>
+
+<span class="comment"># Outros dashboards úteis:</span>
+<span class="string">893</span>   <span class="comment"># Docker and system monitoring</span>
+<span class="string">14282</span> <span class="comment"># Cadvisor Exporter</span>
+<span class="string">13639</span> <span class="comment"># Loki dashboard</span></pre>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">9</div>
+      <div>
+        <h3>Verificar o cAdvisor diretamente</h3>
+        <p>O cAdvisor tem sua própria interface web com visualização por container.</p>
+        <pre><span class="url">http://localhost:8081/containers/</span>
+<span class="comment"># Clique em qualquer container para ver CPU, RAM, rede e disco em tempo real</span></pre>
+        <div class="alert alert-info">
+          💡 O cAdvisor lê as métricas diretamente dos <strong>cgroups</strong> do Linux — o mesmo subsistema que o Docker usa para isolar recursos entre containers.
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- QUERIES -->
+<div class="container query-section" id="queries">
+  <h2 class="section-title">🔍 Queries de Referência</h2>
+  <div class="query-tabs">
+    <button class="qtab active" onclick="showTab('promql')">PromQL — Métricas</button>
+    <button class="qtab" onclick="showTab('logql')">LogQL — Logs</button>
+  </div>
+
+  <div class="alert alert-warning" style="margin-bottom:1rem">
+    ⚠️ <span><strong>Docker Desktop (Windows/Mac):</strong> o cAdvisor não consegue enumerar containers individuais por nome neste ambiente — os containers rodam dentro de uma VM WSL2. As queries marcadas com ✅ funcionam normalmente. As marcadas com ⚠️ só funcionam em <strong>Linux nativo</strong>.</span>
+  </div>
+
+  <div id="promql" class="query-block active">
+    <div class="query-item">
+      <p>✅ ❤️ <strong>Quais targets estão UP (Prometheus, cAdvisor, Node Exporter)</strong></p>
+      <pre>up</pre>
+    </div>
+    <div class="query-item">
+      <p>✅ 🖥️ <strong>CPU do host em % — por modo (idle, user, system...)</strong></p>
+      <pre>100 - (<span class="keyword">avg by</span> (instance)(<span class="keyword">rate</span>(node_cpu_seconds_total{mode=<span class="string">"idle"</span>}[5m])) * 100)</pre>
+    </div>
+    <div class="query-item">
+      <p>✅ 💾 <strong>Memória RAM usada no host</strong></p>
+      <pre>node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes</pre>
+    </div>
+    <div class="query-item">
+      <p>✅ 🗂️ <strong>Memória disponível no host (bytes)</strong></p>
+      <pre>node_memory_MemAvailable_bytes</pre>
+    </div>
+    <div class="query-item">
+      <p>✅ 💿 <strong>Espaço livre em disco no host (%)</strong></p>
+      <pre>(node_filesystem_avail_bytes{mountpoint=<span class="string">"/"</span>} / node_filesystem_size_bytes{mountpoint=<span class="string">"/"</span>}) * 100</pre>
+    </div>
+    <div class="query-item">
+      <p>✅ 📶 <strong>Tráfego de rede recebido no host (bytes/s)</strong></p>
+      <pre><span class="keyword">rate</span>(node_network_receive_bytes_total{device=<span class="string">"eth0"</span>}[5m])</pre>
+    </div>
+    <div class="query-item">
+      <p>✅ 🔄 <strong>Carga do sistema (load average 1 min)</strong></p>
+      <pre>node_load1</pre>
+    </div>
+    <div class="query-item">
+      <p>✅ ⏱️ <strong>Uptime do host (segundos)</strong></p>
+      <pre>node_time_seconds - node_boot_time_seconds</pre>
+    </div>
+    <div class="query-item">
+      <p>⚠️ 📦 <strong>Memória por container — só Linux nativo</strong></p>
+      <pre><span class="comment"># Não retorna resultados no Docker Desktop/Windows</span>
+container_memory_usage_bytes{name!=""}</pre>
+    </div>
+    <div class="query-item">
+      <p>⚠️ 🔢 <strong>CPU por container — só Linux nativo</strong></p>
+      <pre><span class="comment"># Não retorna resultados no Docker Desktop/Windows</span>
+<span class="keyword">rate</span>(container_cpu_usage_seconds_total{name!=""}[5m]) * 100</pre>
+    </div>
+  </div>
+
+  <div id="logql" class="query-block">
+    <div class="alert alert-tip" style="margin-bottom:1rem">
+      ✅ <span>Todas as queries LogQL abaixo funcionam normalmente no Docker Desktop — o Promtail lê os arquivos de log diretamente do sistema de arquivos WSL2.</span>
+    </div>
+    <div class="query-item">
+      <p>📋 <strong>Todos os logs de todos os containers</strong></p>
+      <pre>{job=<span class="string">"docker"</span>}</pre>
+    </div>
+    <div class="query-item">
+      <p>🔵 <strong>Só os logs do nginx</strong></p>
+      <pre>{job=<span class="string">"docker"</span>, tag=<span class="string">"nginx-app"</span>}</pre>
+    </div>
+    <div class="query-item">
+      <p>🔴 <strong>Filtrar linhas com "error" (case insensitive)</strong></p>
+      <pre>{job=<span class="string">"docker"</span>} |~ <span class="string">"(?i)error"</span></pre>
+    </div>
+    <div class="query-item">
+      <p>🟠 <strong>Filtrar pelo stderr (onde erros costumam aparecer)</strong></p>
+      <pre>{job=<span class="string">"docker"</span>, stream=<span class="string">"stderr"</span>}</pre>
+    </div>
+    <div class="query-item">
+      <p>📊 <strong>Contar linhas de log por container (últimos 5 min)</strong></p>
+      <pre><span class="keyword">sum by</span> (tag) (<span class="keyword">count_over_time</span>({job=<span class="string">"docker"</span>}[5m]))</pre>
+    </div>
+    <div class="query-item">
+      <p>📈 <strong>Taxa de logs por segundo</strong></p>
+      <pre><span class="keyword">rate</span>({job=<span class="string">"docker"</span>}[1m])</pre>
+    </div>
+    <div class="query-item">
+      <p>🔍 <strong>Buscar texto livre em todos os logs</strong></p>
+      <pre>{job=<span class="string">"docker"</span>} |= <span class="string">"GET"</span></pre>
+    </div>
+    <div class="query-item">
+      <p>📝 <strong>Logs do sistema operacional host</strong></p>
+      <pre>{job=<span class="string">"varlogs"</span>}</pre>
+    </div>
+  </div>
+</div>
+
+<!-- DASHBOARD IMPORT -->
+<div class="container" id="dashboard">
+  <h2 class="section-title">📊 Importar Dashboard do Grafana Labs</h2>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div>
+        <h3>Abrir o Grafana e ir em Import</h3>
+        <p>No menu lateral esquerdo, clique em <strong>Dashboards</strong> → <strong>New</strong> → <strong>Import</strong>.</p>
+        <a class="tool-link" href="http://localhost:3000/dashboard/import" target="_blank">↗ Ir direto para Import</a>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div>
+        <h3>Digitar o ID do dashboard</h3>
+        <p>No campo <em>"Import via grafana.com"</em>, digite o ID e clique em <strong>Load</strong>.</p>
+        <pre><span class="string">1860</span>   <span class="comment">← ✅ Node Exporter Full — métricas do host (funciona aqui)</span>
+<span class="string">893</span>    <span class="comment">← ⚠️  Docker and system monitoring (cAdvisor — só Linux nativo)</span>
+<span class="string">14282</span>  <span class="comment">← ⚠️  Cadvisor Exporter (só Linux nativo)</span>
+<span class="string">13659</span>  <span class="comment">← ✅ Loki dashboard (logs — funciona aqui)</span></pre>
+        <div class="alert alert-tip" style="margin-top:.75rem">✅ <span>Para este ambiente, importe o <strong>1860</strong> (Node Exporter Full) — é o mais rico em dados disponíveis.</span></div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div>
+        <h3>Selecionar o datasource e importar</h3>
+        <p>Na tela seguinte, no campo <strong>Prometheus</strong>, selecione o datasource <em>Prometheus</em> que já está configurado. Clique em <strong>Import</strong>.</p>
+        <div class="alert alert-tip">✅ O dashboard aparecerá imediatamente com dados reais dos seus containers.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CHECKLIST -->
+<div class="container" id="checklist">
+  <h2 class="section-title">✅ Checklist da Aula</h2>
+  <div class="checklist">
+    <label class="check-item">
+      <input type="checkbox"> Acessei o Prometheus em <code>:9090</code> e vi os targets UP
+    </label>
+    <label class="check-item">
+      <input type="checkbox"> Fiz uma query PromQL no Prometheus Graph
+    </label>
+    <label class="check-item">
+      <input type="checkbox"> Acessei o Grafana em <code>:3000</code> com admin/admin
+    </label>
+    <label class="check-item">
+      <input type="checkbox"> Abri o Explore e busquei logs com <code>{job="docker"}</code>
+    </label>
+    <label class="check-item">
+      <input type="checkbox"> Gerei tráfego no nginx e vi os logs chegando ao vivo
+    </label>
+    <label class="check-item">
+      <input type="checkbox"> Gerei carga de CPU e vi o gráfico subir no Prometheus
+    </label>
+    <label class="check-item">
+      <input type="checkbox"> Filtrei logs de erro com <code>|= "error"</code> no Loki
+    </label>
+    <label class="check-item">
+      <input type="checkbox"> Importei um dashboard do Grafana Labs (ID 1860 ou 893)
+    </label>
+    <label class="check-item">
+      <input type="checkbox"> Acessei o cAdvisor em <code>:8081</code> e vi métricas por container
+    </label>
+    <label class="check-item">
+      <input type="checkbox"> Entendi a diferença entre métricas (Prometheus) e logs (Loki)
+    </label>
+  </div>
+</div>
+
+<!-- GLOSSÁRIO -->
+<div class="container" id="glossario">
+  <h2 class="section-title">📖 Glossário Rápido</h2>
+  <dl class="glossary">
+    <div class="gloss-item">
+      <dt>Observabilidade</dt>
+      <dd>Capacidade de entender o estado interno de um sistema a partir de suas saídas externas: métricas, logs e traces.</dd>
+    </div>
+    <div class="gloss-item">
+      <dt>Métrica</dt>
+      <dd>Valor numérico medido ao longo do tempo. Ex: CPU%, bytes de memória, requisições/segundo.</dd>
+    </div>
+    <div class="gloss-item">
+      <dt>Time Series</dt>
+      <dd>Sequência de valores numéricos indexados por tempo. É como o Prometheus armazena as métricas.</dd>
+    </div>
+    <div class="gloss-item">
+      <dt>Scrape</dt>
+      <dd>Ação do Prometheus de "raspar" (requisitar) o endpoint <code>/metrics</code> de um serviço para coletar métricas.</dd>
+    </div>
+    <div class="gloss-item">
+      <dt>Label</dt>
+      <dd>Par chave=valor que identifica uma série temporal ou entrada de log. Ex: <code>container="nginx"</code>.</dd>
+    </div>
+    <div class="gloss-item">
+      <dt>PromQL</dt>
+      <dd>Linguagem de consulta do Prometheus. Permite calcular taxas, médias e agregações sobre as métricas.</dd>
+    </div>
+    <div class="gloss-item">
+      <dt>LogQL</dt>
+      <dd>Linguagem de consulta do Loki. Baseada em PromQL, mas para filtrar e agregar linhas de log.</dd>
+    </div>
+    <div class="gloss-item">
+      <dt>Exporter</dt>
+      <dd>Serviço que expõe métricas no formato Prometheus de um sistema que não as expõe nativamente. Ex: Node Exporter, cAdvisor.</dd>
+    </div>
+    <div class="gloss-item">
+      <dt>Provisioning</dt>
+      <dd>Configuração automática de datasources e dashboards no Grafana via arquivos YAML, sem intervenção manual.</dd>
+    </div>
+    <div class="gloss-item">
+      <dt>cgroups</dt>
+      <dd>Recurso do kernel Linux que isola e limita CPU, memória e I/O de processos. Base do Docker e do cAdvisor.</dd>
+    </div>
+    <div class="gloss-item">
+      <dt>Pull vs Push</dt>
+      <dd>Prometheus vai buscar as métricas (pull). Promtail envia os logs ao Loki (push). Ambos os modelos coexistem na stack.</dd>
+    </div>
+    <div class="gloss-item">
+      <dt>Cardinality</dt>
+      <dd>Quantidade de séries temporais únicas. Alta cardinalidade (muitas labels únicas) impacta performance do Prometheus e Loki.</dd>
+    </div>
+  </dl>
+</div>
+
+<footer>
+  Aula 15 — Monitoramento &amp; Observabilidade com Docker · Stack: Prometheus · Grafana · Loki · cAdvisor
+</footer>
+
+<script>
+  function showTab(id) {
+    document.querySelectorAll('.query-block').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.qtab').forEach(el => el.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    event.target.classList.add('active');
+  }
+
+  // Destaca link nav ativo no scroll
+  const sections = document.querySelectorAll('[id]');
+  const navLinks = document.querySelectorAll('nav a');
+  window.addEventListener('scroll', () => {
+    let current = '';
+    sections.forEach(s => {
+      if (window.scrollY >= s.offsetTop - 80) current = s.id;
+    });
+    navLinks.forEach(a => {
+      a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+    });
+  });
+</script>
+</body>
+</html>

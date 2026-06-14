@@ -1,0 +1,100 @@
+# =============================================================================
+# CONFIGURAÇÃO DO PROMTAIL
+# Promtail é o agente que coleta logs dos containers e envia para o Loki
+# Funciona como o "Filebeat" do ecossistema Grafana
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Servidor interno do Promtail (usado para health check e métricas próprias)
+# ---------------------------------------------------------------------------
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+# ---------------------------------------------------------------------------
+# Posições — arquivo que registra até onde cada log foi lido
+# Evita reprocessar os mesmos logs após um restart do Promtail
+# ---------------------------------------------------------------------------
+positions:
+  filename: /tmp/promtail/positions.yaml
+
+# ---------------------------------------------------------------------------
+# Clientes — para onde os logs serão enviados
+# Aponta para o Loki dentro da rede Docker
+# ---------------------------------------------------------------------------
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+# ---------------------------------------------------------------------------
+# SCRAPE CONFIGS — define quais arquivos de log serão lidos e quais labels
+# serão adicionados a cada entrada de log
+# ---------------------------------------------------------------------------
+scrape_configs:
+
+  # ---------------------------------------------------------------------------
+  # Logs dos containers Docker
+  # O Docker armazena logs em: /var/lib/docker/containers/<id>/<id>-json.log
+  # O Promtail lê esses arquivos e envia para o Loki com labels identificadores
+  # ---------------------------------------------------------------------------
+  - job_name: docker-containers
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          # Label obrigatória — identifica a origem dos logs no Loki
+          job: docker
+          # Glob que captura todos os logs de todos os containers em execução
+          __path__: /var/lib/docker/containers/*/*-json.log
+
+    # Pipeline de transformação — extrai informações úteis de cada linha de log
+    pipeline_stages:
+
+      # Etapa 1: O Docker armazena logs em formato JSON
+      # Extrai o campo "log" (texto da linha) e os metadados de timestamp
+      - json:
+          expressions:
+            output: log
+            stream: stream
+            timestamp: time
+            attrs: attrs
+
+      # Etapa 2: Extrai o nome do container dos atributos Docker
+      - json:
+          source: attrs
+          expressions:
+            tag: "com.docker.compose.service"
+
+      # Etapa 3: Extrai o nome do container e serviço a partir do caminho do arquivo
+      # O caminho tem formato: /var/lib/docker/containers/<container-id>/<container-id>-json.log
+      - regex:
+          expression: "/var/lib/docker/containers/(?P<container_id>[^/]+)/[^/]+-json.log"
+          source: filename
+
+      # Etapa 4: Adiciona labels permanentes às entradas de log
+      # Essas labels permitem filtrar logs no Grafana/Loki
+      - labels:
+          stream:         # stdout ou stderr
+          container_id:   # ID único do container
+          tag:            # nome do serviço Docker Compose
+
+      # Etapa 5: Usa o timestamp real do log (não o momento de ingestão)
+      - timestamp:
+          source: timestamp
+          format: RFC3339Nano
+
+      # Etapa 6: Define o conteúdo da linha de log como o campo "output"
+      - output:
+          source: output
+
+  # ---------------------------------------------------------------------------
+  # Logs do sistema operacional host (syslog, auth, etc.)
+  # Útil para demonstrar que o Loki pode agregar qualquer tipo de log
+  # ---------------------------------------------------------------------------
+  - job_name: system
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: varlogs
+          host: docker-host
+          __path__: /var/log/*.log

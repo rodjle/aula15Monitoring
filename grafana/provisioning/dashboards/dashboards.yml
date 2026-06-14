@@ -1,0 +1,26 @@
+# =============================================================================
+# PROVISIONING DE DASHBOARDS DO GRAFANA
+# Configura de onde o Grafana deve carregar os arquivos JSON de dashboards
+# Coloque arquivos .json na pasta /etc/grafana/dashboards para carregamento automático
+# =============================================================================
+
+apiVersion: 1
+
+providers:
+
+  # ---------------------------------------------------------------------------
+  # Provider padrão — monitora a pasta de dashboards e carrega automaticamente
+  # ---------------------------------------------------------------------------
+  - name: "Monitoring Stack Dashboards"
+    orgId: 1
+    # Tipo "file" significa que os dashboards são lidos de arquivos JSON locais
+    type: file
+    disableDeletion: false
+    # Verifica se há novos dashboards a cada 30 segundos
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      # Pasta dentro do container onde os JSONs de dashboard ficam armazenados
+      path: /etc/grafana/dashboards
+      # Carrega dashboards em subpastas também
+      foldersFromFilesStructure: true

@@ -1,0 +1,41 @@
+# =============================================================================
+# PROVISIONING DE DATASOURCES DO GRAFANA
+# Este arquivo configura automaticamente as fontes de dados quando o Grafana inicia
+# Não é necessário configurar manualmente pela UI — já vem pronto!
+# =============================================================================
+
+apiVersion: 1
+
+datasources:
+
+  # ---------------------------------------------------------------------------
+  # PROMETHEUS — fonte de métricas
+  # Usado para queries PromQL (gráficos de CPU, memória, etc.)
+  # ---------------------------------------------------------------------------
+  - name: Prometheus
+    type: prometheus
+    # Define como datasource padrão (será selecionado automaticamente nos dashboards)
+    isDefault: true
+    access: proxy
+    # Endereço interno do container Prometheus na rede Docker
+    url: http://prometheus:9090
+    jsonData:
+      # Intervalo de scrape configurado no prometheus.yml
+      timeInterval: "15s"
+      # Habilita exemplars (rastreamento de traces vinculados a métricas)
+      exemplarTraceIdDestinations: []
+    editable: true
+
+  # ---------------------------------------------------------------------------
+  # LOKI — fonte de logs
+  # Usado para queries LogQL (pesquisa e visualização de logs)
+  # ---------------------------------------------------------------------------
+  - name: Loki
+    type: loki
+    access: proxy
+    # Endereço interno do container Loki na rede Docker
+    url: http://loki:3100
+    jsonData:
+      # Timeout máximo para queries de log
+      maxLines: 1000
+    editable: true

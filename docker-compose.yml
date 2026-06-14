@@ -1,0 +1,255 @@
+# =============================================================================
+# STACK DE MONITORAMENTO DE CONTAINERS
+# Aula 15 — Observabilidade com Prometheus, Grafana, Loki e cAdvisor
+# =============================================================================
+# Serviços incluídos:
+#   - Prometheus:    coleta e armazena métricas (porta 9090)
+#   - Grafana:       dashboards visuais          (porta 3000)
+#   - Loki:          agrega logs dos containers  (porta 3100)
+#   - Promtail:      envia logs ao Loki          (sem porta externa)
+#   - cAdvisor:      métricas de containers      (porta 8081)
+#   - Node Exporter: métricas do host (OS)       (sem porta externa)
+#   - Nginx:         app de exemplo              (porta 8080)
+# =============================================================================
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # PROMETHEUS — banco de dados de métricas (time series)
+  # Faz "scrape" dos endpoints /metrics de cada serviço a cada 15s
+  # ---------------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    container_name: prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      # Arquivo de configuração com os scrape targets
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      # Volume nomeado para persistir os dados mesmo após restart
+      - prometheus_data:/prometheus
+    command:
+      # Aponta para o arquivo de configuração
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      # Mantém dados por 15 dias
+      - "--storage.tsdb.retention.time=15d"
+      # Habilita API de gerenciamento (necessário para alguns recursos do Grafana)
+      - "--web.enable-lifecycle"
+    networks:
+      - monitoring
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ---------------------------------------------------------------------------
+  # GRAFANA — plataforma de dashboards e visualização
+  # Consome dados do Prometheus (métricas) e do Loki (logs)
+  # ---------------------------------------------------------------------------
+  grafana:
+    image: grafana/grafana:10.4.2
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # Credenciais padrão (alterar em produção!)
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      # Desabilita o assistente de boas-vindas para ir direto aos dashboards
+      - GF_USERS_ALLOW_SIGN_UP=false
+      # Desativa aviso de senha padrão (para fins didáticos)
+      - GF_SECURITY_DISABLE_INITIAL_ADMIN_CREATION=false
+    volumes:
+      # Volume nomeado para persistir dashboards e configurações do Grafana
+      - grafana_data:/var/lib/grafana
+      # Provisionamento automático de datasources (Prometheus + Loki)
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      # Provisionamento automático de dashboards
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      # Pasta onde os arquivos JSON de dashboard ficam armazenados
+      - ./grafana/dashboards:/etc/grafana/dashboards:ro
+    networks:
+      - monitoring
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ---------------------------------------------------------------------------
+  # LOKI — sistema de agregação de logs (semelhante ao Prometheus, mas para logs)
+  # Armazena e indexa logs enviados pelo Promtail
+  # ---------------------------------------------------------------------------
+  loki:
+    image: grafana/loki:2.9.8
+    container_name: loki
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    volumes:
+      # Arquivo de configuração do Loki
+      - ./loki/loki-config.yml:/etc/loki/loki-config.yml:ro
+      # Volume nomeado para persistir os logs armazenados
+      - loki_data:/loki
+    command: -config.file=/etc/loki/loki-config.yml
+    networks:
+      - monitoring
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3100/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # PROMTAIL — agente que coleta logs dos containers e envia para o Loki
+  # Lê os arquivos de log do Docker em /var/lib/docker/containers
+  # ---------------------------------------------------------------------------
+  promtail:
+    image: grafana/promtail:2.9.8
+    container_name: promtail
+    restart: unless-stopped
+    volumes:
+      # Arquivo de configuração do Promtail
+      - ./promtail/promtail-config.yml:/etc/promtail/promtail-config.yml:ro
+      # Acesso somente-leitura aos logs dos containers Docker no host
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      # Acesso aos logs do sistema operacional
+      - /var/log:/var/log:ro
+      # Posição de leitura persistida (para não reprocessar logs após restart)
+      - promtail_positions:/tmp/promtail
+    command: -config.file=/etc/promtail/promtail-config.yml
+    networks:
+      - monitoring
+    depends_on:
+      loki:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # CADVISOR — Container Advisor
+  # Coleta métricas de CPU, RAM, rede e disco de cada container em execução
+  # Expõe endpoint /metrics que o Prometheus faz scrape
+  # ---------------------------------------------------------------------------
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: cadvisor
+    restart: unless-stopped
+    ports:
+      # Porta externa 8081 para não conflitar com o nginx (porta 8080)
+      - "8081:8080"
+    volumes:
+      # Acesso ao sistema de arquivos do host para coletar métricas
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      # Necessário em alguns sistemas Linux para cgroups v2
+      - /dev/disk/:/dev/disk:ro
+      # Socket do Docker para enumeração de containers por nome
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    privileged: true
+    devices:
+      - /dev/kmsg
+    command:
+      # Mostra só containers Docker (não processos do sistema)
+      - "--docker_only=true"
+      # Inclui labels do Docker (nome, compose service, etc.) nas métricas
+      - "--store_container_labels=true"
+      # Enriquece métricas com o nome do container Docker
+      - "--whitelisted_container_labels=com.docker.compose.service"
+    networks:
+      - monitoring
+
+  # ---------------------------------------------------------------------------
+  # NODE EXPORTER — exporta métricas do sistema operacional host
+  # CPU, memória, disco, rede, carga do sistema, etc.
+  # Expõe endpoint /metrics que o Prometheus faz scrape
+  # ---------------------------------------------------------------------------
+  node-exporter:
+    image: prom/node-exporter:v1.8.0
+    container_name: node-exporter
+    restart: unless-stopped
+    # Sem porta exposta externamente — só o Prometheus precisa acessar
+    ports:
+      - "9100:9100"
+    volumes:
+      # Monta o sistema de arquivos do host em modo somente-leitura
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.rootfs=/rootfs"
+      - "--path.sysfs=/host/sys"
+      # Exclui filesystems irrelevantes para reduzir ruído
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
+    networks:
+      - monitoring
+
+  # ---------------------------------------------------------------------------
+  # NGINX — aplicação de exemplo para gerar tráfego e logs
+  # Serve uma página HTML simples; os logs de acesso são capturados pelo Promtail
+  # ---------------------------------------------------------------------------
+  nginx:
+    image: nginx:1.27.0
+    container_name: nginx-app
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      # Monta toda a pasta app — serve index.html, guia.html e qualquer outro arquivo
+      - ./app:/usr/share/nginx/html:ro
+    networks:
+      - monitoring
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ---------------------------------------------------------------------------
+  # SIMULATOR — API Python/Flask para simular eventos de log, CPU e memória
+  # Expõe endpoints chamados pelo painel de testes da página nginx
+  # Todos os logs vão para stdout → Docker → Promtail → Loki
+  # ---------------------------------------------------------------------------
+  simulator:
+    build:
+      context: ./simulator
+    container_name: simulator
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    networks:
+      - monitoring
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+# =============================================================================
+# REDES — todos os serviços se comunicam pela rede interna "monitoring"
+# =============================================================================
+networks:
+  monitoring:
+    name: monitoring
+    driver: bridge
+
+# =============================================================================
+# VOLUMES — armazenamento persistente (os dados sobrevivem a docker compose down)
+# Use "docker compose down -v" apenas se quiser apagar tudo
+# =============================================================================
+volumes:
+  prometheus_data:
+    name: prometheus_data
+  grafana_data:
+    name: grafana_data
+  loki_data:
+    name: loki_data
+  promtail_positions:
+    name: promtail_positions

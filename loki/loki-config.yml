@@ -1,0 +1,74 @@
+# =============================================================================
+# CONFIGURAÇÃO DO LOKI
+# Loki é um sistema de agregação de logs — como um Prometheus, mas para logs
+# =============================================================================
+
+# Desabilita autenticação (adequado para uso local/didático)
+auth_enabled: false
+
+# ---------------------------------------------------------------------------
+# Servidor HTTP
+# ---------------------------------------------------------------------------
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9096
+  # Nível de log do próprio Loki
+  log_level: info
+
+# ---------------------------------------------------------------------------
+# Configurações comuns de armazenamento e ingestão
+# ---------------------------------------------------------------------------
+common:
+  instance_addr: 127.0.0.1
+  path_prefix: /loki
+  storage:
+    # Armazenamento local em filesystem (simples para demonstração)
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+# ---------------------------------------------------------------------------
+# Configuração do schema de índices
+# Determina como os logs são indexados e armazenados
+# ---------------------------------------------------------------------------
+schema_config:
+  configs:
+    - from: "2024-01-01"
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+# ---------------------------------------------------------------------------
+# Limites de ingestão (valores generosos para demonstração)
+# ---------------------------------------------------------------------------
+limits_config:
+  # Janela de ingestão retroativa — aceita logs com até 1 semana de atraso
+  ingestion_burst_size_mb: 256
+  ingestion_rate_mb: 64
+  # Permite consultar até 30 dias de logs
+  max_query_lookback: 720h
+  reject_old_samples: true
+  reject_old_samples_max_age: 168h
+
+# ---------------------------------------------------------------------------
+# Configuração do ruler (regras de alerta — desabilitado aqui)
+# ---------------------------------------------------------------------------
+ruler:
+  alertmanager_url: http://localhost:9093
+
+# ---------------------------------------------------------------------------
+# Cache e performance
+# ---------------------------------------------------------------------------
+query_range:
+  results_cache:
+    cache:
+      embedded_cache:
+        enabled: true
+        max_size_mb: 100
