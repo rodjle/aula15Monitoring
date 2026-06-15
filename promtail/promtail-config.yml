@@ -58,11 +58,13 @@ scrape_configs:
             timestamp: time
             attrs: attrs
 
-      # Etapa 2: Extrai o nome do container dos atributos Docker
+      # Etapa 2: Extrai o nome do serviço Docker Compose dos atributos do log
+      # NOTA: o Promtail usa JMESPath. Para chaves com pontos literais,
+      # use aspas duplas dentro da expressão: '"chave.com.pontos"'
       - json:
           source: attrs
           expressions:
-            tag: "com.docker.compose.service"
+            tag: '"com.docker.compose.service"'
 
       # Etapa 3: Extrai o nome do container e serviço a partir do caminho do arquivo
       # O caminho tem formato: /var/lib/docker/containers/<container-id>/<container-id>-json.log

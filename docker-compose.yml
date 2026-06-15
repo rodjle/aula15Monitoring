@@ -12,6 +12,14 @@
 #   - Nginx:         app de exemplo              (porta 8080)
 # =============================================================================
 
+# Bloco reutilizável — força o Docker a incluir o label com.docker.compose.service
+# no campo attrs de cada linha do JSON log. Sem isso, o Promtail não consegue
+# extrair o nome do serviço para usar como label no Loki.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    labels: "com.docker.compose.service"
+
 services:
 
   # ---------------------------------------------------------------------------
@@ -38,6 +46,7 @@ services:
       - "--web.enable-lifecycle"
     networks:
       - monitoring
+    logging: *default-logging
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
       interval: 30s
@@ -73,6 +82,7 @@ services:
       - ./grafana/dashboards:/etc/grafana/dashboards:ro
     networks:
       - monitoring
+    logging: *default-logging
     depends_on:
       prometheus:
         condition: service_healthy
@@ -100,6 +110,7 @@ services:
     command: -config.file=/etc/loki/loki-config.yml
     networks:
       - monitoring
+    logging: *default-logging
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3100/ready"]
       interval: 30s
@@ -126,6 +137,7 @@ services:
     command: -config.file=/etc/promtail/promtail-config.yml
     networks:
       - monitoring
+    logging: *default-logging
     depends_on:
       loki:
         condition: service_healthy
@@ -164,6 +176,7 @@ services:
       - "--whitelisted_container_labels=com.docker.compose.service"
     networks:
       - monitoring
+    logging: *default-logging
 
   # ---------------------------------------------------------------------------
   # NODE EXPORTER — exporta métricas do sistema operacional host
@@ -190,6 +203,7 @@ services:
       - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
     networks:
       - monitoring
+    logging: *default-logging
 
   # ---------------------------------------------------------------------------
   # NGINX — aplicação de exemplo para gerar tráfego e logs
@@ -206,6 +220,7 @@ services:
       - ./app:/usr/share/nginx/html:ro
     networks:
       - monitoring
+    logging: *default-logging
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
       interval: 30s
@@ -226,6 +241,7 @@ services:
       - "5000:5000"
     networks:
       - monitoring
+    logging: *default-logging
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:5000/health"]
       interval: 30s

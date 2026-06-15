@@ -102,6 +102,11 @@
       <p>Backend dos testes — logs, CPU, memória</p>
       <a href="http://localhost:5000/health" target="_blank">Health check →</a>
     </div>
+    <div class="card" style="border-color:#f97316;background:#1a1e2e">
+      <h3>📖 Guia de Queries</h3>
+      <p>Referência completa de PromQL, LogQL e dicas do Grafana</p>
+      <a href="guia.html" target="_blank" style="font-size:.85rem">Abrir guia →</a>
+    </div>
   </div>
 
   <!-- ====================================================================
@@ -168,7 +173,7 @@
 
   <!-- Queries de exemplo -->
   <div class="queries">
-    <h3>🔍 Queries de referência rápida</h3>
+    <h3>🔍 Queries de referência rápida &nbsp;<a href="guia.html" target="_blank" style="font-size:.75rem;font-weight:600;color:#f97316;text-decoration:none">Ver guia completo →</a></h3>
     <ul>
       <li>📈 PromQL — CPU: <code>sum(rate(container_cpu_usage_seconds_total{name!=""}[1m])) by (name) * 100</code></li>
       <li>💾 PromQL — RAM: <code>container_memory_usage_bytes{name!=""}</code></li>

@@ -30,6 +30,7 @@
       background: var(--bg);
       color: var(--text);
       line-height: 1.7;
+      font-size: 17px;
     }
 
     /* ── NAV ── */
@@ -55,7 +56,7 @@
       padding: 1rem 1.1rem;
       color: var(--muted);
       text-decoration: none;
-      font-size: .82rem;
+      font-size: .93rem;
       font-weight: 500;
       white-space: nowrap;
       border-bottom: 2px solid transparent;
@@ -72,7 +73,7 @@
     }
     .hero h1 { font-size: clamp(1.8rem, 4vw, 2.8rem); font-weight: 700; margin-bottom: .5rem; }
     .hero h1 span { color: var(--orange); }
-    .hero p { color: var(--muted); font-size: 1.05rem; max-width: 600px; margin: 0 auto 2rem; }
+    .hero p { color: var(--muted); font-size: 1.2rem; max-width: 600px; margin: 0 auto 2rem; }
     .pill-row { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center; }
     .pill {
       background: var(--surface2);
@@ -130,7 +131,7 @@
     .tool-icon { font-size: 1.8rem; }
     .tool-name { font-size: 1rem; font-weight: 700; }
     .tool-port { font-size: .75rem; color: var(--muted); }
-    .tool-desc { font-size: .85rem; color: var(--muted); margin-bottom: .75rem; }
+    .tool-desc { font-size: 1rem; color: var(--muted); margin-bottom: .75rem; }
     .tool-tag {
       display: inline-block;
       font-size: .7rem;
@@ -210,8 +211,8 @@
       font-size: 1.1rem;
       flex-shrink: 0;
     }
-    .step h3 { font-size: 1rem; margin-bottom: .4rem; }
-    .step p  { font-size: .88rem; color: var(--muted); margin-bottom: .75rem; }
+    .step h3 { font-size: 1.05rem; margin-bottom: .4rem; }
+    .step p  { font-size: 1rem; color: var(--muted); margin-bottom: .75rem; }
 
     /* ── CODE ── */
     pre, code {
@@ -223,7 +224,7 @@
       border-radius: 8px;
       padding: 1rem 1.2rem;
       overflow-x: auto;
-      font-size: .82rem;
+      font-size: .92rem;
       line-height: 1.6;
       position: relative;
     }
@@ -259,7 +260,7 @@
     .query-block { display: none; }
     .query-block.active { display: block; }
     .query-item { margin-bottom: 1rem; }
-    .query-item p { font-size: .82rem; color: var(--muted); margin-bottom: .4rem; }
+    .query-item p { font-size: 1rem; color: var(--muted); margin-bottom: .5rem; }
 
     /* ── CHECKLIST ── */
     .checklist {
@@ -275,7 +276,7 @@
       gap: .75rem;
       padding: .6rem 0;
       border-bottom: 1px solid var(--border);
-      font-size: .88rem;
+      font-size: 1rem;
     }
     .check-item:last-child { border-bottom: none; }
     .check-item input[type=checkbox] { margin-top: 3px; accent-color: var(--orange); transform: scale(1.2); flex-shrink: 0; }
@@ -284,7 +285,7 @@
     .alert {
       border-radius: 8px;
       padding: .9rem 1.1rem;
-      font-size: .85rem;
+      font-size: .97rem;
       margin: .75rem 0;
       display: flex;
       gap: .6rem;
@@ -302,8 +303,8 @@
       border-radius: 8px;
       padding: 1rem;
     }
-    .gloss-item dt { font-weight: 700; color: var(--orange); margin-bottom: .25rem; font-size: .9rem; }
-    .gloss-item dd { font-size: .82rem; color: var(--muted); }
+    .gloss-item dt { font-weight: 700; color: var(--orange); margin-bottom: .25rem; font-size: 1rem; }
+    .gloss-item dd { font-size: .96rem; color: var(--muted); }
 
     /* ── FOOTER ── */
     footer {
@@ -325,6 +326,7 @@
 <!-- NAV -->
 <nav>
   <ul>
+    <li><a href="index.html" style="color:var(--orange);font-weight:700">← Painel</a></li>
     <li><a href="#ferramentas">🔧 Ferramentas</a></li>
     <li><a href="#arquitetura">🏗️ Arquitetura</a></li>
     <li><a href="#passo-a-passo">📋 Passo a Passo</a></li>
@@ -689,94 +691,289 @@
 <div class="container query-section" id="queries">
   <h2 class="section-title">🔍 Queries de Referência</h2>
   <div class="query-tabs">
-    <button class="qtab active" onclick="showTab('promql')">PromQL — Métricas</button>
-    <button class="qtab" onclick="showTab('logql')">LogQL — Logs</button>
+    <button class="qtab active" onclick="showTab('promql')">🔥 PromQL — Prometheus</button>
+    <button class="qtab" onclick="showTab('logql')">📋 LogQL — Loki</button>
+    <button class="qtab" onclick="showTab('grafanatips')">📊 Grafana — Dicas</button>
   </div>
 
   <div class="alert alert-warning" style="margin-bottom:1rem">
-    ⚠️ <span><strong>Docker Desktop (Windows/Mac):</strong> o cAdvisor não consegue enumerar containers individuais por nome neste ambiente — os containers rodam dentro de uma VM WSL2. As queries marcadas com ✅ funcionam normalmente. As marcadas com ⚠️ só funcionam em <strong>Linux nativo</strong>.</span>
+    ⚠️ <span><strong>Docker Desktop (Windows/Mac):</strong> queries de container individuais (marcadas ⚠️) só funcionam em Linux nativo — o cAdvisor não enumera containers dentro da VM WSL2. Todas as queries marcadas com ✅ funcionam normalmente.</span>
   </div>
 
+  <!-- PromQL -->
   <div id="promql" class="query-block active">
+    <div class="alert alert-info" style="margin-bottom:1rem">
+      💡 <span>Essas queries funcionam tanto no <strong>Prometheus</strong> (<a href="http://localhost:9090/graph" target="_blank" style="color:var(--blue)">:9090/graph</a>) quanto no <strong>Grafana Explore</strong> selecionando o datasource <em>Prometheus</em>.</span>
+    </div>
+
     <div class="query-item">
-      <p>✅ ❤️ <strong>Quais targets estão UP (Prometheus, cAdvisor, Node Exporter)</strong></p>
+      <p style="color:var(--text)">✅ ❤️ <strong>Status dos targets — quais serviços estão sendo coletados</strong></p>
+      <p>Retorna <code>1</code> (UP) ou <code>0</code> (DOWN) para cada target. É a primeira query a executar para saber se a stack está saudável.</p>
       <pre>up</pre>
     </div>
+
     <div class="query-item">
-      <p>✅ 🖥️ <strong>CPU do host em % — por modo (idle, user, system...)</strong></p>
-      <pre>100 - (<span class="keyword">avg by</span> (instance)(<span class="keyword">rate</span>(node_cpu_seconds_total{mode=<span class="string">"idle"</span>}[5m])) * 100)</pre>
+      <p style="color:var(--text)">✅ 🖥️ <strong>CPU do host em % — uso total excluindo o modo idle</strong></p>
+      <p>Calcula a taxa de variação do tempo de CPU em modo idle nos últimos 5 min e subtrai de 100%. <code>avg by(instance)</code> agrega todos os núcleos em um único valor.</p>
+      <pre>100 - (<span class="keyword">avg by</span>(instance)(<span class="keyword">rate</span>(node_cpu_seconds_total{mode=<span class="string">"idle"</span>}[5m])) * 100)</pre>
     </div>
+
     <div class="query-item">
-      <p>✅ 💾 <strong>Memória RAM usada no host</strong></p>
+      <p style="color:var(--text)">✅ 🖥️ <strong>CPU por modo (user, system, iowait, steal...)</strong></p>
+      <p>Mostra quanto tempo a CPU passa em cada modo. <code>iowait</code> alto indica gargalo de disco; <code>steal</code> alto indica contenção em VM compartilhada.</p>
+      <pre><span class="keyword">rate</span>(node_cpu_seconds_total[5m])</pre>
+    </div>
+
+    <div class="query-item">
+      <p style="color:var(--text)">✅ 💾 <strong>Memória RAM usada no host (bytes)</strong></p>
+      <p>Total instalado menos o disponível. Mais preciso que <code>MemFree</code> — considera buffers e cache que o kernel pode liberar se necessário.</p>
       <pre>node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes</pre>
     </div>
+
     <div class="query-item">
-      <p>✅ 🗂️ <strong>Memória disponível no host (bytes)</strong></p>
-      <pre>node_memory_MemAvailable_bytes</pre>
+      <p style="color:var(--text)">✅ 💾 <strong>Uso de memória em % do total</strong></p>
+      <p>Versão percentual — mais fácil de interpretar num gauge do Grafana. Subtrai o disponível do total e divide. Resultado entre 0 e 100.</p>
+      <pre>(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100</pre>
     </div>
+
     <div class="query-item">
-      <p>✅ 💿 <strong>Espaço livre em disco no host (%)</strong></p>
+      <p style="color:var(--text)">✅ 💿 <strong>Espaço livre em disco no filesystem raiz (%)</strong></p>
+      <p>Divide o espaço disponível pelo total no ponto de montagem <code>/</code>. Útil para criar alertas de disco cheio antes de atingir 100%.</p>
       <pre>(node_filesystem_avail_bytes{mountpoint=<span class="string">"/"</span>} / node_filesystem_size_bytes{mountpoint=<span class="string">"/"</span>}) * 100</pre>
     </div>
+
     <div class="query-item">
-      <p>✅ 📶 <strong>Tráfego de rede recebido no host (bytes/s)</strong></p>
-      <pre><span class="keyword">rate</span>(node_network_receive_bytes_total{device=<span class="string">"eth0"</span>}[5m])</pre>
+      <p style="color:var(--text)">✅ 📶 <strong>Tráfego de rede recebido (bytes/s) — todas as interfaces</strong></p>
+      <p>Taxa de bytes recebidos nos últimos 5 minutos. Sem filtro de interface, mostra todas. Troque <code>[5m]</code> por <code>[1m]</code> para variações mais rápidas.</p>
+      <pre><span class="keyword">rate</span>(node_network_receive_bytes_total[5m])</pre>
     </div>
+
     <div class="query-item">
-      <p>✅ 🔄 <strong>Carga do sistema (load average 1 min)</strong></p>
-      <pre>node_load1</pre>
+      <p style="color:var(--text)">✅ 📡 <strong>Tráfego de rede enviado (bytes/s) — todas as interfaces</strong></p>
+      <p>Mesma lógica, mas para o tráfego de saída (transmit). Combine com a query de recebimento num painel para ver upload e download lado a lado.</p>
+      <pre><span class="keyword">rate</span>(node_network_transmit_bytes_total[5m])</pre>
     </div>
+
     <div class="query-item">
-      <p>✅ ⏱️ <strong>Uptime do host (segundos)</strong></p>
-      <pre>node_time_seconds - node_boot_time_seconds</pre>
+      <p style="color:var(--text)">✅ 🔄 <strong>Load average — carga do sistema (1, 5 e 15 minutos)</strong></p>
+      <p>Média de processos aguardando CPU. Valores acima do número de núcleos indicam sobrecarga. Compare os três para ver a tendência: se load15 &gt; load1, a carga está diminuindo.</p>
+      <pre><span class="comment"># 1 minuto (mais instável, reage rápido a picos)</span>
+node_load1
+
+<span class="comment"># 5 minutos (referência mais usada)</span>
+node_load5
+
+<span class="comment"># 15 minutos (tendência de longo prazo)</span>
+node_load15</pre>
     </div>
+
     <div class="query-item">
-      <p>⚠️ 📦 <strong>Memória por container — só Linux nativo</strong></p>
+      <p style="color:var(--text)">✅ ⏱️ <strong>Uptime do host em horas</strong></p>
+      <p>Diferença entre o tempo atual e o tempo de boot, convertida para horas. Útil para confirmar se houve reinicialização inesperada.</p>
+      <pre>(node_time_seconds - node_boot_time_seconds) / 3600</pre>
+    </div>
+
+    <div class="query-item">
+      <p style="color:var(--text)">✅ 🌡️ <strong>Tempo de coleta de cada target (scrape duration)</strong></p>
+      <p>Quanto tempo o Prometheus levou para coletar métricas de cada target. Picos indicam lentidão no exporter — se ultrapassar 15s, o target pode ficar DOWN.</p>
+      <pre>scrape_duration_seconds</pre>
+    </div>
+
+    <div class="query-item">
+      <p style="color:var(--text)">✅ 📊 <strong>Total de séries temporais armazenadas (cardinalidade)</strong></p>
+      <p>Indica quantas séries únicas o Prometheus mantém em memória. Muitas séries consomem mais RAM e CPU. Útil para monitorar a saúde do próprio Prometheus.</p>
+      <pre>prometheus_tsdb_head_series</pre>
+    </div>
+
+    <div class="query-item">
+      <p style="color:var(--text)">⚠️ 📦 <strong>Memória usada por container em bytes — só Linux nativo</strong></p>
+      <p>Retorna o uso de RAM de cada container via cAdvisor. No Docker Desktop (Windows/Mac), o cAdvisor não acessa os cgroups dentro da VM WSL2 e a query retorna vazia.</p>
       <pre><span class="comment"># Não retorna resultados no Docker Desktop/Windows</span>
-container_memory_usage_bytes{name!=""}</pre>
+container_memory_usage_bytes{name!=<span class="string">""</span>}</pre>
     </div>
+
     <div class="query-item">
-      <p>⚠️ 🔢 <strong>CPU por container — só Linux nativo</strong></p>
+      <p style="color:var(--text)">⚠️ 🔥 <strong>CPU por container em % — só Linux nativo</strong></p>
+      <p>Taxa de uso de CPU de cada container nos últimos 5 minutos. Requer acesso direto aos cgroups do host — disponível apenas em Linux nativo, não no Docker Desktop.</p>
       <pre><span class="comment"># Não retorna resultados no Docker Desktop/Windows</span>
-<span class="keyword">rate</span>(container_cpu_usage_seconds_total{name!=""}[5m]) * 100</pre>
+<span class="keyword">rate</span>(container_cpu_usage_seconds_total{name!=<span class="string">""</span>}[5m]) * 100</pre>
+    </div>
+
+    <div class="query-item">
+      <p style="color:var(--text)">⚠️ 🔢 <strong>Número de containers em execução — só Linux nativo</strong></p>
+      <p>Conta quantos containers únicos estão ativos segundo o cAdvisor. Útil para dashboards de infraestrutura. Não funciona no Docker Desktop.</p>
+      <pre><span class="comment"># Não retorna resultados no Docker Desktop/Windows</span>
+<span class="keyword">count</span>(container_last_seen{name!=<span class="string">""</span>})</pre>
     </div>
   </div>
 
+  <!-- LogQL -->
   <div id="logql" class="query-block">
     <div class="alert alert-tip" style="margin-bottom:1rem">
-      ✅ <span>Todas as queries LogQL abaixo funcionam normalmente no Docker Desktop — o Promtail lê os arquivos de log diretamente do sistema de arquivos WSL2.</span>
+      ✅ <span>Todas as queries LogQL abaixo funcionam no Docker Desktop. Acesse pelo <strong>Grafana Explore</strong>: <a href="http://localhost:3000/explore" target="_blank" style="color:var(--blue)">localhost:3000/explore</a> → selecione <strong>Loki</strong> como datasource.</span>
     </div>
+
     <div class="query-item">
-      <p>📋 <strong>Todos os logs de todos os containers</strong></p>
+      <p style="color:var(--text)">📋 <strong>Todos os logs de todos os containers Docker</strong></p>
+      <p>O seletor <code>{job="docker"}</code> é o ponto de entrada. Use como base antes de refinar com filtros adicionais.</p>
       <pre>{job=<span class="string">"docker"</span>}</pre>
     </div>
+
     <div class="query-item">
-      <p>🔵 <strong>Só os logs do nginx</strong></p>
+      <p style="color:var(--text)">🌐 <strong>Logs apenas do nginx (logs de acesso HTTP)</strong></p>
+      <p>Filtra pela label <code>tag</code> que o Promtail extrai do nome do container. Você vê: IP, método HTTP, path, código de status e bytes transferidos.</p>
       <pre>{job=<span class="string">"docker"</span>, tag=<span class="string">"nginx-app"</span>}</pre>
     </div>
+
     <div class="query-item">
-      <p>🔴 <strong>Filtrar linhas com "error" (case insensitive)</strong></p>
+      <p style="color:var(--text)">🤖 <strong>Logs do simulator (nosso app de testes)</strong></p>
+      <p>Filtra os logs do container Python que gera eventos de INFO, WARN e ERROR. Use os botões do painel de testes e observe os logs chegando aqui em tempo real.</p>
+      <pre>{tag=<span class="string">"simulator"</span>}</pre>
+    </div>
+
+    <div class="query-item">
+      <p style="color:var(--text)">🔴 <strong>Filtrar linhas que contêm "ERROR" (exato, case sensitive)</strong></p>
+      <p>O operador <code>|=</code> faz busca de substring no texto do log. Rápido e eficiente para filtros simples. Encadeie vários <code>|=</code> para filtros AND.</p>
+      <pre>{job=<span class="string">"docker"</span>} |= <span class="string">"ERROR"</span></pre>
+    </div>
+
+    <div class="query-item">
+      <p style="color:var(--text)">🔎 <strong>Filtrar por "error" ignorando maiúsculas/minúsculas (regex)</strong></p>
+      <p>O operador <code>|~</code> usa expressão regular. A flag <code>(?i)</code> torna a busca case-insensitive — captura "Error", "ERROR" e "error" ao mesmo tempo.</p>
       <pre>{job=<span class="string">"docker"</span>} |~ <span class="string">"(?i)error"</span></pre>
     </div>
+
     <div class="query-item">
-      <p>🟠 <strong>Filtrar pelo stderr (onde erros costumam aparecer)</strong></p>
+      <p style="color:var(--text)">🚫 <strong>Excluir linhas que contenham determinado texto</strong></p>
+      <p>O operador <code>!=</code> é o inverso do <code>|=</code> — descarta linhas que contenham o texto. Útil para remover ruído, como health checks repetitivos dos logs.</p>
+      <pre>{job=<span class="string">"docker"</span>} != <span class="string">"health"</span></pre>
+    </div>
+
+    <div class="query-item">
+      <p style="color:var(--text)">🟠 <strong>Filtrar pelo stream stderr (onde erros costumam aparecer)</strong></p>
+      <p>O Docker separa os logs em <code>stdout</code> e <code>stderr</code>. Aplicações costumam escrever mensagens de erro no stderr. Esta query isola apenas esse stream.</p>
       <pre>{job=<span class="string">"docker"</span>, stream=<span class="string">"stderr"</span>}</pre>
     </div>
+
     <div class="query-item">
-      <p>📊 <strong>Contar linhas de log por container (últimos 5 min)</strong></p>
-      <pre><span class="keyword">sum by</span> (tag) (<span class="keyword">count_over_time</span>({job=<span class="string">"docker"</span>}[5m]))</pre>
+      <p style="color:var(--text)">🚨 <strong>Erros 404 do nginx</strong></p>
+      <p>Combina filtro de container (nginx-app) com filtro de texto (404). Encadeie quantos filtros precisar — cada operador adicional refina ainda mais o resultado.</p>
+      <pre>{tag=<span class="string">"nginx-app"</span>} |= <span class="string">"404"</span></pre>
     </div>
+
     <div class="query-item">
-      <p>📈 <strong>Taxa de logs por segundo</strong></p>
-      <pre><span class="keyword">rate</span>({job=<span class="string">"docker"</span>}[1m])</pre>
+      <p style="color:var(--text)">📊 <strong>Contar linhas de log por container (últimos 5 min)</strong></p>
+      <p>Agrega a contagem de linhas pela label <code>tag</code>. Mostra qual container está gerando mais logs — ótimo para detectar barulho excessivo de logging.</p>
+      <pre><span class="keyword">sum by</span>(tag) (<span class="keyword">count_over_time</span>({job=<span class="string">"docker"</span>}[5m]))</pre>
     </div>
+
     <div class="query-item">
-      <p>🔍 <strong>Buscar texto livre em todos os logs</strong></p>
-      <pre>{job=<span class="string">"docker"</span>} |= <span class="string">"GET"</span></pre>
+      <p style="color:var(--text)">📈 <strong>Taxa de logs por segundo por container (logs/s)</strong></p>
+      <p>Usando <code>rate()</code> igual ao PromQL, mas sobre linhas de log. Útil para detectar picos de logging e criar alertas de anomalia.</p>
+      <pre><span class="keyword">sum by</span>(tag) (<span class="keyword">rate</span>({job=<span class="string">"docker"</span>}[1m]))</pre>
     </div>
+
     <div class="query-item">
-      <p>📝 <strong>Logs do sistema operacional host</strong></p>
+      <p style="color:var(--text)">🔢 <strong>Contar só os logs de ERROR nos últimos 10 minutos</strong></p>
+      <p>Combina filtro de texto com agregação temporal. O resultado é um número escalar — ideal para um painel "stat" ou para criar um alerta automático no Grafana.</p>
+      <pre><span class="keyword">sum</span>(<span class="keyword">count_over_time</span>({job=<span class="string">"docker"</span>} |= <span class="string">"ERROR"</span> [10m]))</pre>
+    </div>
+
+    <div class="query-item">
+      <p style="color:var(--text)">🔍 <strong>Extrair código de status HTTP do nginx e filtrar erros 4xx/5xx</strong></p>
+      <p>O parser <code>pattern</code> extrai campos nomeados do texto do log. Depois filtra só os status ≥ 400. Muito poderoso para análise de tráfego HTTP sem precisar de outro exporter.</p>
+      <pre>{tag=<span class="string">"nginx-app"</span>} | <span class="keyword">pattern</span> <span class="string">`&lt;_&gt; "&lt;method&gt; &lt;path&gt; &lt;_&gt;" &lt;status&gt; &lt;_&gt;`</span> | status &gt;= 400</pre>
+    </div>
+
+    <div class="query-item">
+      <p style="color:var(--text)">📝 <strong>Logs do sistema operacional host</strong></p>
+      <p>O Promtail coleta também os logs do sistema em <code>/var/log</code> do WSL2. Útil para ver eventos do kernel, autenticação SSH e serviços do host.</p>
       <pre>{job=<span class="string">"varlogs"</span>}</pre>
+    </div>
+  </div>
+
+  <!-- Grafana -->
+  <div id="grafanatips" class="query-block">
+    <div class="alert alert-info" style="margin-bottom:1rem">
+      💡 <span>Acesse o Grafana em <a href="http://localhost:3000" target="_blank" style="color:var(--blue)">localhost:3000</a> com <strong>admin / admin</strong>. Clique <em>Skip</em> quando pedir troca de senha.</span>
+    </div>
+
+    <div class="query-item">
+      <p style="color:var(--text)">🗺️ <strong>Explore — onde testar queries ao vivo</strong></p>
+      <p>O Explore é a ferramenta de query interativa do Grafana. Não precisa criar dashboard — basta selecionar o datasource, digitar a query e executar. Clique em <strong>Live</strong> para streaming em tempo real.</p>
+      <pre><span class="comment"># Acesse diretamente:</span>
+<span class="url">http://localhost:3000/explore</span>
+
+<span class="comment"># Atalhos no Explore:</span>
+<span class="comment"># Shift + Enter   → executar query</span>
+<span class="comment"># Botão Live      → streaming de logs em tempo real</span>
+<span class="comment"># Seletor de tempo (canto superior direito) → ajuste o período</span></pre>
+    </div>
+
+    <div class="query-item">
+      <p style="color:var(--text)">🔗 <strong>Datasources configurados via provisioning automático</strong></p>
+      <p>O Grafana já vem com Prometheus e Loki configurados via arquivos YAML — sem nenhuma intervenção manual. Isso se chama <em>provisioning</em>. Confira em <em>Connections → Data sources</em>.</p>
+      <pre><span class="url">http://localhost:3000/connections/datasources</span>
+
+<span class="comment"># Prometheus → datasource padrão (ícone de chama) — use para PromQL</span>
+<span class="comment"># Loki       → datasource de logs — use para LogQL</span></pre>
+    </div>
+
+    <div class="query-item">
+      <p style="color:var(--text)">📥 <strong>Importar dashboards prontos do Grafana Labs</strong></p>
+      <p>O Grafana Labs tem centenas de dashboards prontos. Digite o ID, clique em <strong>Load</strong>, selecione o datasource correto e clique em <strong>Import</strong>.</p>
+      <pre><span class="url">http://localhost:3000/dashboard/import</span>
+
+<span class="string">1860</span>   <span class="comment">← ✅ Node Exporter Full — métricas completas do host</span>
+<span class="string">13659</span>  <span class="comment">← ✅ Loki dashboard — análise de logs</span>
+<span class="string">893</span>    <span class="comment">← ⚠️  Docker monitoring (cAdvisor — só Linux nativo)</span>
+<span class="string">14282</span>  <span class="comment">← ⚠️  Cadvisor Exporter (só Linux nativo)</span></pre>
+    </div>
+
+    <div class="query-item">
+      <p style="color:var(--text)">➕ <strong>Criar um painel (panel) personalizado</strong></p>
+      <p>Crie dashboards com qualquer combinação de métricas e logs. Cada visualização é um "panel" que usa PromQL ou LogQL como fonte de dados.</p>
+      <pre><span class="comment"># 1. Dashboards → New → New Dashboard</span>
+<span class="comment"># 2. Clique em "+ Add visualization"</span>
+<span class="comment"># 3. Selecione o datasource (Prometheus ou Loki)</span>
+<span class="comment"># 4. Digite a query (PromQL ou LogQL)</span>
+<span class="comment"># 5. Escolha o tipo de visualização (veja abaixo)</span>
+<span class="comment"># 6. Clique Apply → salve o dashboard (ícone de disquete)</span></pre>
+    </div>
+
+    <div class="query-item">
+      <p style="color:var(--text)">🎨 <strong>Tipos de visualização disponíveis no Grafana</strong></p>
+      <p>Cada tipo é ideal para um caso de uso específico. No editor do panel, use o seletor no canto superior direito para trocar entre os tipos.</p>
+      <pre><span class="comment">Time series → séries temporais (CPU%, rede, latência ao longo do tempo)</span>
+<span class="comment">Gauge       → valor atual com limite máximo (uso de disco %, memória %)</span>
+<span class="comment">Stat        → número único em destaque (uptime, total de erros)</span>
+<span class="comment">Bar gauge   → comparar valores entre containers ou instâncias</span>
+<span class="comment">Logs        → stream de logs do Loki (visualização nativa de log)</span>
+<span class="comment">Table       → dados tabulares com múltiplas métricas em colunas</span>
+<span class="comment">Pie chart   → proporções (% de memória por container)</span></pre>
+    </div>
+
+    <div class="query-item">
+      <p style="color:var(--text)">⏱️ <strong>Ajustar o intervalo de tempo e auto-refresh</strong></p>
+      <p>O seletor de tempo no canto superior direito de qualquer dashboard ou Explore controla o período exibido. Ative o auto-refresh para atualizações automáticas.</p>
+      <pre><span class="comment">Last 5m   → ver picos em tempo real logo após um teste</span>
+<span class="comment">Last 15m  → referência padrão durante a aula</span>
+<span class="comment">Last 1h   → ver tendência de crescimento</span>
+<span class="comment">Last 6h   → análise pós-incidente</span>
+
+<span class="comment"># Auto-refresh: clique no seletor de tempo → escolha 5s, 10s ou 30s</span>
+<span class="comment"># Tecla F5 ou ícone ↻ para atualizar manualmente</span></pre>
+    </div>
+
+    <div class="query-item">
+      <p style="color:var(--text)">🔔 <strong>Criar alertas baseados em queries</strong></p>
+      <p>O Grafana permite criar alertas que disparam quando uma condição PromQL ou LogQL é atendida. Configure notificações por email, Slack, PagerDuty e outros.</p>
+      <pre><span class="url">http://localhost:3000/alerting/list</span>
+
+<span class="comment"># Para criar um alerta:</span>
+<span class="comment"># Alerting → Alert rules → + New alert rule</span>
+<span class="comment"># Defina a condição (ex: CPU > 80% por 5 minutos)</span>
+<span class="comment"># Configure o contact point (canal de notificação)</span></pre>
     </div>
   </div>
 </div>
